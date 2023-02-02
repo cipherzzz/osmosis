@@ -63,14 +63,14 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	address2 := node.CreateWalletAndFund("addr2", fundTokens)
 	address3 := node.CreateWalletAndFund("addr3", fundTokens)
 
-	// Create 2 positions for node1: overlap together, overlap with 2 node3 positions)
+	// Create 2 positions for address1: overlap together, overlap with 2 address3 positions)
 	node.CreateConcentratedPosition(address1, "[-1200]", "400", fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
 	node.CreateConcentratedPosition(address1, "[-400]", "400", fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
 
-	// Create 1 position for node2: does not overlap with anything, ends at maximum
+	// Create 1 position for address2: does not overlap with anything, ends at maximum
 	node.CreateConcentratedPosition(address2, "2200", fmt.Sprintf("%d", maxTick), fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
 
-	// Create 2 positions for node3: overlap together, overlap with 2 node1 positions, one position starts from minimum
+	// Create 2 positions for address3: overlap together, overlap with 2 address1 positions, one position starts from minimum
 	node.CreateConcentratedPosition(address3, "[-1600]", "[-200]", fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
 	node.CreateConcentratedPosition(address3, fmt.Sprintf("[%d]", minTick), "1400", fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
 
@@ -128,8 +128,12 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	concentratedPool.SetCurrentSqrtPrice(sdk.OneDec())
 
 	node.SwapExactAmountIn(uosmoIn, outMinAmt, fmt.Sprintf("%d", poolID), ionDenom, initialization.ValidatorWalletName)
+
+	chainA.WaitForNumHeights(2)
+
 	node.CollectFees(address2, "2200", fmt.Sprintf("%d", maxTick), poolID)
 	fmt.Println("current tick: ", concentratedPool.GetCurrentTick(), concentratedPool.GetCurrentSqrtPrice())
+
 	addr2Balances, err = node.QueryBalances(address2)
 	s.Require().NoError(err)
 	fmt.Println("Address2 Balances AFTER swap: ", addr2Balances)
