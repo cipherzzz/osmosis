@@ -24,10 +24,9 @@ import (
 	appparams "github.com/osmosis-labs/osmosis/v14/app/params"
 	"github.com/osmosis-labs/osmosis/v14/tests/e2e/configurer/config"
 	"github.com/osmosis-labs/osmosis/v14/tests/e2e/initialization"
-	cl "github.com/osmosis-labs/osmosis/v14/x/concentrated-liquidity"
 )
 
-func (s *IntegrationTestSuite) TestConcentratedLiquidity() {
+func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	chainA := s.configurer.GetChainConfig(0)
 	node, err := chainA.GetDefaultNode()
 	s.Require().NoError(err)
@@ -53,8 +52,16 @@ func (s *IntegrationTestSuite) TestConcentratedLiquidity() {
 	s.Require().Equal(concentratedPool.GetPrecisionFactorAtPriceOne(), sdk.NewInt(precisionFactorAtPriceOne))
 	s.Require().Equal(concentratedPool.GetSwapFee(sdk.Context{}), sdk.MustNewDecFromStr(swapFee))
 
-	minTick, maxTick := cl.GetMinAndMaxTicksFromExponentAtPriceOne(sdk.NewInt(precisionFactorAtPriceOne))
+	// minTick, maxTick := cl.GetMinAndMaxTicksFromExponentAtPriceOne(sdk.NewInt(precisionFactorAtPriceOne))
+	node.CreateConcentratedPosition(initialization.ValidatorWalletName, "200", "400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	positions := node.QueryConcentratedPositions(node.Node.PublicAddress)
+	fmt.Println(positions)
+	// // get 3 addresses to create positions
+	// address1 := node.CreateWalletWithAssets("addr1")
+	// address2 := node.CreateWalletWithAssets("addr2")
+	// address3 := node.CreateWalletWithAssets("addr3")
 
+<<<<<<< HEAD
 	fundTokens := []string{"1000000uosmo", "1000000uion", "1000000stake"}
 	// get 3 addresses to create positions
 	address1 := node.CreateWalletAndFund("addr1", fundTokens)
@@ -109,6 +116,62 @@ func (s *IntegrationTestSuite) TestConcentratedLiquidity() {
 	validateCLPosition(addr3position1, poolID, -1600, -200)
 	// second position third address
 	validateCLPosition(addr3position2, poolID, minTick, 1400)
+=======
+	// // Create 2 positions for node1: overlap together, overlap with 2 node3 positions)
+	// node.CreateConcentratedPosition(address1, "[-1200]", "400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	// node.CreateConcentratedPosition(address1, "[-400]", "400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+
+	// // Create 1 position for node2: does not overlap with anything, ends at maximum
+	// node.CreateConcentratedPosition(address2, "2200", fmt.Sprintf("%d", maxTick), fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+
+	// // Create 2 positions for node3: overlap together, overlap with 2 node1 positions, one position starts from minimum
+	// node.CreateConcentratedPosition(address3, "[-1600]", "[-200]", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	// node.CreateConcentratedPosition(address3, fmt.Sprintf("[%d]", minTick), "1400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+
+	// // get newly created positions
+	// positionsAddress1 := node.QueryConcentratedPositions(address1)
+	// positionsAddress2 := node.QueryConcentratedPositions(address2)
+	// positionsAddress3 := node.QueryConcentratedPositions(address3)
+
+	// // assert number of positions per address
+	// s.Require().Equal(len(positionsAddress1), 2)
+	// s.Require().Equal(len(positionsAddress2), 1)
+	// s.Require().Equal(len(positionsAddress3), 2)
+
+	// // Assert returned positions:
+
+	// // assert positions for address1
+	// a1p1 := positionsAddress1[0]
+	// a1p2 := positionsAddress1[1]
+	// // first position first address
+	// s.Require().Equal(a1p1.PoolId, poolID)
+	// s.Require().Equal(a1p1.LowerTick, -1200)
+	// s.Require().Equal(a1p1.UpperTick, 400)
+	// // second position second address
+	// s.Require().Equal(a1p2.PoolId, poolID)
+	// s.Require().Equal(a1p2.LowerTick, -400)
+	// s.Require().Equal(a1p2.UpperTick, 400)
+
+	// // assert positions for address2
+	// a2p1 := positionsAddress2[0]
+	// // first position second address
+	// s.Require().Equal(a2p1.PoolId, poolID)
+	// s.Require().Equal(a2p1.LowerTick, 2200)
+	// s.Require().Equal(a2p1.UpperTick, maxTick)
+
+	// // assert positions for address3
+	// a3p1 := positionsAddress3[0]
+	// a3p2 := positionsAddress3[1]
+	// // first position third address
+	// s.Require().Equal(a3p1.PoolId, poolID)
+	// s.Require().Equal(a3p1.LowerTick, -1600)
+	// s.Require().Equal(a3p1.UpperTick, -200)
+	// // second position third address
+	// s.Require().Equal(a3p2.PoolId, poolID)
+	// s.Require().Equal(a3p2.LowerTick, minTick)
+	// s.Require().Equal(a3p2.UpperTick, 1400)
+
+>>>>>>> 338eb6377 (wip on e2e)
 }
 
 // TestGeometricTwapMigration tests that the geometric twap record
