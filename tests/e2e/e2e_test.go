@@ -89,6 +89,12 @@ func (s *IntegrationTestSuite) TestConcentratedLiquidity() {
 		s.Require().Equal(position.UpperTick, int64(upperTick))
 	}
 
+	validateCLPosition := func(position types.FullPositionByOwnerResult, poolId uint64, lowerTick, upperTick int64) {
+		s.Require().Equal(position.PoolId, poolId)
+		s.Require().Equal(position.LowerTick, int64(lowerTick))
+		s.Require().Equal(position.UpperTick, int64(upperTick))
+	}
+
 	// assert positions for address1
 	addr1position1 := positionsAddress1[0]
 	addr1position2 := positionsAddress1[1]
