@@ -27,31 +27,33 @@ import (
 	cl "github.com/osmosis-labs/osmosis/v14/x/concentrated-liquidity"
 )
 
-func (s *IntegrationTestSuite) TestConcentratedLiquidity() {
+func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	chainA := s.configurer.GetChainConfig(0)
 	node, err := chainA.GetDefaultNode()
 	s.Require().NoError(err)
 
 	var (
-		denom0                    string = "uion"
-		denom1                    string = "uosmo"
+		ionDenom                  string = "uion"
+		osmoDenom                 string = "uosmo"
 		tickSpacing               uint64 = 1
 		precisionFactorAtPriceOne int64  = -1
 		frozenUntil               int64  = time.Unix(86400, 0).Unix()
 		swapFee                          = "0.01"
 	)
-	poolID := node.CreateConcentratedPool(initialization.ValidatorWalletName, denom0, denom1, tickSpacing, precisionFactorAtPriceOne, swapFee)
+	poolID := node.CreateConcentratedPool(initialization.ValidatorWalletName, ionDenom, osmoDenom, tickSpacing, precisionFactorAtPriceOne, swapFee)
 
 	concentratedPool, err := node.QueryConcentratedPool(poolID)
 	s.Require().NoError(err)
 
 	// assert contents of the pool are valid
 	s.Require().Equal(concentratedPool.GetId(), poolID)
-	s.Require().Equal(concentratedPool.GetToken0(), denom0)
-	s.Require().Equal(concentratedPool.GetToken1(), denom1)
+	s.Require().Equal(concentratedPool.GetToken0(), ionDenom)
+	s.Require().Equal(concentratedPool.GetToken1(), osmoDenom)
 	s.Require().Equal(concentratedPool.GetTickSpacing(), tickSpacing)
 	s.Require().Equal(concentratedPool.GetPrecisionFactorAtPriceOne(), sdk.NewInt(precisionFactorAtPriceOne))
 	s.Require().Equal(concentratedPool.GetSwapFee(sdk.Context{}), sdk.MustNewDecFromStr(swapFee))
+
+	// Concentrated Positions
 
 	minTick, maxTick := cl.GetMinAndMaxTicksFromExponentAtPriceOne(sdk.NewInt(precisionFactorAtPriceOne))
 
@@ -62,15 +64,15 @@ func (s *IntegrationTestSuite) TestConcentratedLiquidity() {
 	address3 := node.CreateWalletAndFund("addr3", fundTokens)
 
 	// Create 2 positions for node1: overlap together, overlap with 2 node3 positions)
-	node.CreateConcentratedPosition(address1, "[-1200]", "400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
-	node.CreateConcentratedPosition(address1, "[-400]", "400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address1, "[-1200]", "400", fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address1, "[-400]", "400", fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
 
 	// Create 1 position for node2: does not overlap with anything, ends at maximum
-	node.CreateConcentratedPosition(address2, "2200", fmt.Sprintf("%d", maxTick), fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address2, "2200", fmt.Sprintf("%d", maxTick), fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
 
 	// Create 2 positions for node3: overlap together, overlap with 2 node1 positions, one position starts from minimum
-	node.CreateConcentratedPosition(address3, "[-1600]", "[-200]", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
-	node.CreateConcentratedPosition(address3, fmt.Sprintf("[%d]", minTick), "1400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address3, "[-1600]", "[-200]", fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address3, fmt.Sprintf("[%d]", minTick), "1400", fmt.Sprintf("1000%s", ionDenom), fmt.Sprintf("1000%s", osmoDenom), 0, 0, frozenUntil, poolID)
 
 	// get newly created positions
 	positionsAddress1 := node.QueryConcentratedPositions(address1)
@@ -83,12 +85,6 @@ func (s *IntegrationTestSuite) TestConcentratedLiquidity() {
 	s.Require().Equal(len(positionsAddress3), 2)
 
 	// Assert returned positions:
-	validateCLPosition := func(position types.FullPositionByOwnerResult, poolId uint64, lowerTick, upperTick int64) {
-		s.Require().Equal(position.PoolId, poolId)
-		s.Require().Equal(position.LowerTick, int64(lowerTick))
-		s.Require().Equal(position.UpperTick, int64(upperTick))
-	}
-
 	validateCLPosition := func(position types.FullPositionByOwnerResult, poolId uint64, lowerTick, upperTick int64) {
 		s.Require().Equal(position.PoolId, poolId)
 		s.Require().Equal(position.LowerTick, int64(lowerTick))
@@ -115,6 +111,28 @@ func (s *IntegrationTestSuite) TestConcentratedLiquidity() {
 	validateCLPosition(addr3position1, poolID, -1600, -200)
 	// second position third address
 	validateCLPosition(addr3position2, poolID, minTick, 1400)
+
+	// Collect Fees
+
+	var (
+		uosmoIn   = "100000000uosmo"
+		outMinAmt = "1"
+	)
+
+	addr2Balances, err := node.QueryBalances(address2)
+	s.Require().NoError(err)
+	fmt.Println("Address2 Balances BEFORE swap: ", addr2Balances)
+
+	// Perform a swap in position 1 of address 2
+	concentratedPool.SetCurrentTick(sdk.NewInt(2300))
+	concentratedPool.SetCurrentSqrtPrice(sdk.OneDec())
+
+	node.SwapExactAmountIn(uosmoIn, outMinAmt, fmt.Sprintf("%d", poolID), ionDenom, initialization.ValidatorWalletName)
+	node.CollectFees(address2, "2200", fmt.Sprintf("%d", maxTick), poolID)
+	fmt.Println("current tick: ", concentratedPool.GetCurrentTick(), concentratedPool.GetCurrentSqrtPrice())
+	addr2Balances, err = node.QueryBalances(address2)
+	s.Require().NoError(err)
+	fmt.Println("Address2 Balances AFTER swap: ", addr2Balances)
 }
 
 // TestGeometricTwapMigration tests that the geometric twap record
