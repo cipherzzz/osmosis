@@ -21,10 +21,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	app "github.com/osmosis-labs/osmosis/v14/app"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/p2p"
 	coretypes "github.com/tendermint/tendermint/rpc/core/types"
+
+	app "github.com/osmosis-labs/osmosis/v14/app"
 )
 
 func (n *NodeConfig) CreateBalancerPool(poolFile, from string) uint64 {
@@ -75,6 +76,14 @@ func (n *NodeConfig) StoreWasmCode(wasmFile, from string) {
 	_, _, err := n.containerManager.ExecTxCmd(n.t, n.chainId, n.Name, cmd)
 	require.NoError(n.t, err)
 	n.LogActionF("successfully stored")
+}
+
+func (n *NodeConfig) WithdrawPosition(from, lowerTick, upperTick string, liquidityOut string, poolId uint64, frozenUntil int64) {
+	n.LogActionF("withdrawing liquidity from position")
+	cmd := []string{"osmosisd", "tx", "concentratedliquidity", "withdraw-position", lowerTick, upperTick, liquidityOut, fmt.Sprintf("%d", frozenUntil), fmt.Sprintf("--from=%s", from), fmt.Sprintf("--pool-id=%d", poolId)}
+	_, _, err := n.containerManager.ExecTxCmd(n.t, n.chainId, n.Name, cmd)
+	require.NoError(n.t, err)
+	n.LogActionF("successfully withdrew position from lowerTick %s to upperTick %s", lowerTick, upperTick)
 }
 
 func (n *NodeConfig) InstantiateWasmContract(codeId, initMsg, from string) {
@@ -294,7 +303,7 @@ func (n *NodeConfig) CreateWallet(walletName string) string {
 	re := regexp.MustCompile("osmo1(.{38})")
 	walletAddr := fmt.Sprintf("%s\n", re.FindString(outBuf.String()))
 	walletAddr = strings.TrimSuffix(walletAddr, "\n")
-	n.LogActionF("created wallet %s, waller address - %s", walletName, walletAddr)
+	n.LogActionF("created wallet %s, wallet address - %s", walletName, walletAddr)
 	return walletAddr
 }
 
