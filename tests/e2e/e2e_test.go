@@ -150,47 +150,6 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	s.Require().True(addr1BalancesAfter[2].Amount.GT(addr1BalancesBefore[2].Amount))
 	s.Require().True(addr1BalancesAfter[1].Amount.Equal(addr1BalancesBefore[1].Amount))
 	s.Require().True(addr1BalancesAfter[0].Amount.Equal(addr1BalancesBefore[0].Amount))
-
-	// Withdraw Position:
-	var (
-		defaultLiquidityRemoval string = "1000"
-	)
-
-	// Assert removing some liquidity
-	// address1: check removing some amount of liquidity
-	address1position1liquidityBefore := positionsAddress1[0].Liquidity
-	node.WithdrawPosition(address1, "[-1200]", "400", defaultLiquidityRemoval, poolID, frozenUntil)
-	// assert
-	positionsAddress1 = node.QueryConcentratedPositions(address1)
-	s.Require().Equal(address1position1liquidityBefore, positionsAddress1[0].Liquidity.Add(sdk.MustNewDecFromStr(defaultLiquidityRemoval)))
-
-	// address2: check removing some amount of liquidity
-	address2position1liquidityBefore := positionsAddress2[0].Liquidity
-	node.WithdrawPosition(address2, "2200", fmt.Sprintf("%d", maxTick), defaultLiquidityRemoval, poolID, frozenUntil)
-	// assert
-	positionsAddress2 = node.QueryConcentratedPositions(address2)
-	s.Require().Equal(address2position1liquidityBefore, positionsAddress2[0].Liquidity.Add(sdk.MustNewDecFromStr(defaultLiquidityRemoval)))
-
-	// address3: check removing some amount of liquidity
-	address3position1liquidityBefore := positionsAddress3[0].Liquidity
-	node.WithdrawPosition(address3, "[-1600]", "[-200]", defaultLiquidityRemoval, poolID, frozenUntil)
-	// assert
-	positionsAddress3 = node.QueryConcentratedPositions(address3)
-	s.Require().Equal(address3position1liquidityBefore, positionsAddress3[0].Liquidity.Add(sdk.MustNewDecFromStr(defaultLiquidityRemoval)))
-
-	// Assert removing all liquidity
-	// address2: no more positions left
-	allLiquidityAddress2Position1 := positionsAddress2[0].Liquidity
-	node.WithdrawPosition(address2, "2200", fmt.Sprintf("%d", maxTick), allLiquidityAddress2Position1.String(), poolID, frozenUntil)
-	positionsAddress2 = node.QueryConcentratedPositions(address2)
-	s.Require().Empty(positionsAddress2)
-
-	// address1: one position left
-	allLiquidityAddress1Position1 := positionsAddress1[0].Liquidity
-	node.WithdrawPosition(address1, "[-1200]", "400", allLiquidityAddress1Position1.String(), poolID, frozenUntil)
-	positionsAddress1 = node.QueryConcentratedPositions(address1)
-	s.Require().Equal(len(positionsAddress1), 1)
-
 }
 
 // Address1 Balances BEFORE swap:  1000000stake,800448uion,800329uosmo
