@@ -43,10 +43,17 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 
 	// helpers
 	var (
+		// get pool
 		updatedPool = func(poolId uint64) types.ConcentratedPoolExtension {
 			concentratedPool, err := node.QueryConcentratedPool(poolId)
 			s.Require().NoError(err)
 			return concentratedPool
+		}
+		// get balances for address
+		addrBalance = func(address string) sdk.Coins {
+			addrBalances, err := node.QueryBalances(address)
+			s.Require().NoError(err)
+			return addrBalances
 		}
 	)
 	poolID := node.CreateConcentratedPool(initialization.ValidatorWalletName, denom0, denom1, tickSpacing, precisionFactorAtPriceOne, swapFee)
@@ -72,15 +79,15 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	address3 := node.CreateWalletAndFund("addr3", fundTokens)
 
 	// Create 2 positions for address1: overlap together, overlap with 2 address3 positions
-	node.CreateConcentratedPosition(address1, "[-1200]", "400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
-	node.CreateConcentratedPosition(address1, "[-400]", "400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address1, "[-1200]", "400", fmt.Sprintf("100000%s", denom0), fmt.Sprintf("100000%s", denom1), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address1, "[-400]", "400", fmt.Sprintf("100000%s", denom0), fmt.Sprintf("100000%s", denom1), 0, 0, frozenUntil, poolID)
 
 	// Create 1 position for address2: does not overlap with anything, ends at maximum
-	node.CreateConcentratedPosition(address2, "2200", fmt.Sprintf("%d", maxTick), fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address2, "2200", fmt.Sprintf("%d", maxTick), fmt.Sprintf("100000%s", denom0), fmt.Sprintf("100000%s", denom1), 0, 0, frozenUntil, poolID)
 
 	// Create 2 positions for address3: overlap together, overlap with 2 address1 positions, one position starts from minimum
-	node.CreateConcentratedPosition(address3, "[-1600]", "[-200]", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
-	node.CreateConcentratedPosition(address3, fmt.Sprintf("[%d]", minTick), "1400", fmt.Sprintf("1000%s", denom0), fmt.Sprintf("1000%s", denom1), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address3, "[-1600]", "[-200]", fmt.Sprintf("100000%s", denom0), fmt.Sprintf("100000%s", denom1), 0, 0, frozenUntil, poolID)
+	node.CreateConcentratedPosition(address3, fmt.Sprintf("[%d]", minTick), "1400", fmt.Sprintf("100000%s", denom0), fmt.Sprintf("100000%s", denom1), 0, 0, frozenUntil, poolID)
 
 	// get newly created positions
 	positionsAddress1 := node.QueryConcentratedPositions(address1)
@@ -123,28 +130,26 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	// Collect Fees
 
 	var (
-		uosmoIn   = "100000000uosmo"
+		uosmoIn   = "10000uosmo"
 		outMinAmt = "1"
 	)
 
-	addr2Balances, err := node.QueryBalances(address2)
-	s.Require().NoError(err)
-	fmt.Println("Address2 Balances BEFORE swap: ", addr2Balances)
-
-	// Perform a swap in position 1 of address 2
-	concentratedPool.SetCurrentTick(sdk.NewInt(2300))
-	concentratedPool.SetCurrentSqrtPrice(sdk.OneDec())
-
+	fmt.Println(addrBalance(node.Node.PublicAddress))
+	// perform swap
 	node.SwapExactAmountIn(uosmoIn, outMinAmt, fmt.Sprintf("%d", poolID), denom0, initialization.ValidatorWalletName)
-
+	// let the chain pick up the changes:
 	chainA.WaitForNumHeights(2)
+	fmt.Println(addrBalance(node.Node.PublicAddress))
 
-	node.CollectFees(address2, "2200", fmt.Sprintf("%d", maxTick), poolID)
-	fmt.Println("current tick: ", concentratedPool.GetCurrentTick(), concentratedPool.GetCurrentSqrtPrice())
+	// collect fees and track balances
+	addr1BalancesBefore := addrBalance(address1)
+	node.CollectFees(address1, "[-1200]", "400", poolID)
+	addr1BalancesAfter := addrBalance(address1)
 
-	addr2Balances, err = node.QueryBalances(address2)
-	s.Require().NoError(err)
-	fmt.Println("Address2 Balances AFTER swap: ", addr2Balances)
+	// assert that the balance changed and only for tokenIn
+	s.Require().True(addr1BalancesAfter[2].Amount.GT(addr1BalancesBefore[2].Amount))
+	s.Require().True(addr1BalancesAfter[1].Amount.Equal(addr1BalancesBefore[1].Amount))
+	s.Require().True(addr1BalancesAfter[0].Amount.Equal(addr1BalancesBefore[0].Amount))
 
 	// Withdraw Position:
 	var (
@@ -187,6 +192,12 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	s.Require().Equal(len(positionsAddress1), 1)
 
 }
+
+// Address1 Balances BEFORE swap:  1000000stake,800448uion,800329uosmo
+// Address1 Balances AFTER swap:  1000000stake,800448uion,800362uosmo
+
+// 109997000000stake,99997000000uion,98997000000osmo
+// 109997000000stake,99997009584uion,98996990000osmo
 
 // TestGeometricTwapMigration tests that the geometric twap record
 // migration runs succesfully. It does so by attempting to execute
