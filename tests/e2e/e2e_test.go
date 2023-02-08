@@ -184,14 +184,6 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 
 }
 
-// Address1 Balances BEFORE swap:  1000000stake,800448uion,800329uosmo
-// Address1 Balances AFTER swap:  1000000stake,800448uion,800362uosmo
-
-// 1010000
-
-// 109997000000stake,99997000000uion,98997000000uosmo
-// 109997000000stake,99997009584uion,98996990000uosmo
-
 // TestGeometricTwapMigration tests that the geometric twap record
 // migration runs succesfully. It does so by attempting to execute
 // the swap on the pool created pre-upgrade. When a pool is created
