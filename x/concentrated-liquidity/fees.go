@@ -62,7 +62,7 @@ func (k Keeper) chargeFee(ctx sdk.Context, poolId uint64, feeUpdate sdk.DecCoin)
 // initializeFeeAccumulatorPosition initializes the pool fee accumulator with zero liquidity delta
 // and zero value for the accumulator.
 // Returns nil on success. Returns error if:
-// - fails to get an accumulator for a given poold id
+// - fails to get an accumulator for a given poolId id
 // - attempts to re-initialize an existing fee accumulator liqudity position
 // - fails to create a position
 func (k Keeper) initializeFeeAccumulatorPosition(ctx sdk.Context, poolId uint64, owner sdk.AccAddress, lowerTick, upperTick int64) error {

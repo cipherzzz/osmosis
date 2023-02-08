@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
@@ -132,6 +133,24 @@ func (n *NodeConfig) QueryBalances(address string) (sdk.Coins, error) {
 		return sdk.Coins{}, err
 	}
 	return balancesResp.GetBalances(), nil
+}
+
+func (n *NodeConfig) QueryEstimateSwapExactAmountIn(sender string, poolId uint64, denom, swapRouteDenoms, swapRoutePoolIds string, chainId string) (sdk.Int, error) {
+	cmd := []string{"osmosisd", "q", "gamm", "estimate-swap-exact-amount-in", fmt.Sprintf("%d", poolId), sender, denom, fmt.Sprintf("--swap-route-denoms=%s", swapRouteDenoms), fmt.Sprintf("--swap-route-pool-ids=%s", swapRoutePoolIds), fmt.Sprintf("--chain-id=%s", chainId)}
+	fmt.Println(cmd)
+	outBuffer, _, err := n.containerManager.ExecCmd(n.t, n.Name, cmd, "token_out_amount")
+	require.NoError(n.t, err)
+
+	outAmtString := strings.Split(outBuffer.String(), " ")[1]
+
+	trimmedOutAmt := strings.TrimPrefix(outAmtString, "\"")
+	trimmedOutAmt = strings.TrimSuffix(trimmedOutAmt, "\"\n")
+
+	outAmt, ok := sdk.NewIntFromString(trimmedOutAmt)
+	if !ok {
+		return sdk.Int{}, fmt.Errorf("Could not get sdk.Int from output buffer: %s", outBuffer.String())
+	}
+	return outAmt, nil
 }
 
 func (n *NodeConfig) QuerySupplyOf(denom string) (sdk.Int, error) {
