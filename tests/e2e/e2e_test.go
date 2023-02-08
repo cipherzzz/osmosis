@@ -134,14 +134,10 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 		outMinAmt = "1"
 	)
 
-	fmt.Println(addrBalance(node.Node.PublicAddress))
-	tokenOutAmt, err := node.QueryEstimateSwapExactAmountIn(address1, poolID, uosmoIn, denom0, fmt.Sprintf("%d", poolID), chainA.Id)
-	fmt.Println(tokenOutAmt)
 	// perform swap
 	node.SwapExactAmountIn(uosmoIn, outMinAmt, fmt.Sprintf("%d", poolID), denom0, initialization.ValidatorWalletName)
 	// let the chain pick up the changes:
 	chainA.WaitForNumHeights(2)
-	fmt.Println(addrBalance(node.Node.PublicAddress))
 
 	// collect fees and track balances
 	addr1BalancesBefore := addrBalance(address1)
@@ -149,9 +145,43 @@ func (s *IntegrationTestSuite) TestAAAConcentratedLiquidity() {
 	addr1BalancesAfter := addrBalance(address1)
 
 	// assert that the balance changed and only for tokenIn
-	s.Require().True(addr1BalancesAfter[2].Amount.GT(addr1BalancesBefore[2].Amount))
 	s.Require().True(addr1BalancesAfter[1].Amount.Equal(addr1BalancesBefore[1].Amount))
 	s.Require().True(addr1BalancesAfter[0].Amount.Equal(addr1BalancesBefore[0].Amount))
+	// assert the amount of collected fees:
+
+	// Swap was performed at tick 0. Swap fee is 0.01, hence, fee is: 10000uosmo * 0.01 = 100uosmo
+	// At tick 0, there are 3 positions: both positions for address1 and one position for address3.
+	// Distribution is proportional to liquidity and initially the provided liquidity was the same for all positions, hence,
+	// in order to get a reward for every position, we should divide 100uosmo by 3.
+	// To sum up, collect fees should return 33uosmo for address1 after swap
+	s.Require().Equal(addr1BalancesBefore.AmountOf("uosmo").Add(sdk.NewInt(33)), addr1BalancesAfter.AmountOf("uosmo"))
+
+	// perform one more swap: assert new fee was added correctly to existing position
+	node.SwapExactAmountIn(uosmoIn, outMinAmt, fmt.Sprintf("%d", poolID), denom0, initialization.ValidatorWalletName)
+	// let the chain pick up the changes:
+	chainA.WaitForNumHeights(2)
+
+	// track balance of address3
+	addr3BalancesBefore := addrBalance(address3)
+	node.CollectFees(address3, fmt.Sprintf("[%d]", minTick), "1400", poolID)
+	addr3BalancesAfter := addrBalance(address3)
+
+	// assert that the balance changed and only for tokenIn
+	s.Require().True(addr1BalancesAfter[1].Amount.Equal(addr1BalancesBefore[1].Amount))
+	s.Require().True(addr1BalancesAfter[0].Amount.Equal(addr1BalancesBefore[0].Amount))
+
+	// assert the amount of collected fees:
+	// address3 had only one position that contains tick 0
+	// From the first swap, it should have 33uosmo, this swap adds 33uosmo more
+	// Hence, in result we should get 66uosmo
+	s.Require().Equal(addr3BalancesBefore.AmountOf("uosmo").Add(sdk.NewInt(66)), addr3BalancesAfter.AmountOf("uosmo"))
+
+	// assert that position which does not contain tick0 was not affected
+	addr2BalancesBefore := addrBalance(address2)
+	node.CollectFees(address2, "2200", fmt.Sprintf("%d", maxTick), poolID)
+	addr2BalancesAfter := addrBalance(address2)
+	s.Require().Equal(addr2BalancesBefore, addr2BalancesAfter)
+
 }
 
 // Address1 Balances BEFORE swap:  1000000stake,800448uion,800329uosmo
