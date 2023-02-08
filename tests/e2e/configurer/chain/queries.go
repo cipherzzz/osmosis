@@ -137,7 +137,6 @@ func (n *NodeConfig) QueryBalances(address string) (sdk.Coins, error) {
 
 func (n *NodeConfig) QueryEstimateSwapExactAmountIn(sender string, poolId uint64, denom, swapRouteDenoms, swapRoutePoolIds string, chainId string) (sdk.Int, error) {
 	cmd := []string{"osmosisd", "q", "gamm", "estimate-swap-exact-amount-in", fmt.Sprintf("%d", poolId), sender, denom, fmt.Sprintf("--swap-route-denoms=%s", swapRouteDenoms), fmt.Sprintf("--swap-route-pool-ids=%s", swapRoutePoolIds), fmt.Sprintf("--chain-id=%s", chainId)}
-	fmt.Println(cmd)
 	outBuffer, _, err := n.containerManager.ExecCmd(n.t, n.Name, cmd, "token_out_amount")
 	require.NoError(n.t, err)
 
